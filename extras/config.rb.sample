@@ -1,0 +1,5 @@
+# Internal Network CIDR
+$kafka_network_cidr = "172.16.0.32/28"
+
+# Number of Kafka brokers
+$kafka_instances_number = 1

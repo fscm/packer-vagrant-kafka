@@ -1,0 +1,67 @@
+# encoding: utf-8
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# For network calculation...
+require 'ipaddr'
+
+# Internal Network CIDR
+$kafka_network_cidr ||= "172.16.0.32/28"
+
+# Number of Kafka brokers
+$kafka_instances_number ||= 1
+
+# Override default values if defined
+CONFIG ||= File.join(File.dirname(__FILE__), "config.rb")
+if File.exist?(CONFIG)
+  require CONFIG
+end
+
+# Calculate the list of cluster brokers
+kafka_brokers ||= (1..$kafka_instances_number).inject([IPAddr.new($kafka_network_cidr)]){ |l, i| l << l.last.succ.to_s }[1..-1]
+
+# Calculate the list of zookeeper nodes
+zookeeper_nodes ||= kafka_brokers.map.with_index(1){ |broker, index| "server." + index.to_s + "=" + broker + ":2888:3888" }
+
+# Vagrantfile API/syntax version.
+VAGRANTFILE_API_VERSION ||= "2"
+
+# Vagrant version.
+# version 1.8.0 is required due to issue https://github.com/mitchellh/vagrant/issues/5497
+Vagrant.require_version ">= 1.8.0"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "fscm/kafka"
+
+  config.ssh.forward_agent = false
+  config.ssh.forward_x11 = false
+  config.ssh.keep_alive = true
+  config.ssh.username = "pollywog"
+
+  config.vm.box_check_update = true
+
+  config.vm.network "forwarded_port", guest: 2181, host: 2181, protocol: "tcp", auto_correct: true
+  config.vm.network "forwarded_port", guest: 9092, host: 9092, protocol: "tcp", auto_correct: true
+
+  config.vm.communicator = "ssh"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder ".", "/shared", create: true
+
+  (1..$kafka_instances_number).each do |instance|
+    config.vm.define instance_name = "kafka%02d" % instance do |config|
+      config.vm.hostname = instance_name
+      config.vm.network "private_network", ip: kafka_brokers[instance - 1], auto_config: true
+      config.vm.provision :shell, privileged: true, inline: "systemctl stop kafka.service && echo kafka service stoped"
+      config.vm.provision :shell, privileged: true, inline: "systemctl stop zookeeper.service && echo zookeeper service stoped"
+      config.vm.provision :shell, privileged: true, inline: "rm -rf /srv/kafka/data/* /srv/kafka/logs/* /srv/zookeeper/data/* /srv/zookeeper/logs/* && echo data cleaned up"
+      config.vm.provision :shell, privileged: true, inline: "echo " + instance.to_s + " > /srv/zookeeper/data/myid && chown zookeeper:zookeeper /srv/zookeeper/data/myid && echo zookeeper id created"
+      config.vm.provision :shell, privileged: true, inline: "sed -i -r -e '/^server/d' /srv/zookeeper/conf/zoo.cfg && echo removed old zookeeper nodes from config"
+      config.vm.provision :shell, privileged: true, inline: "for node in " + zookeeper_nodes.join(' ') + "; do echo ${node} >> /srv/zookeeper/conf/zoo.cfg; done && echo added new zookeeper nodes to config"
+      config.vm.provision :shell, privileged: true, inline: "sed -i -r -e '/^broker.id=/s/=.*/=" + instance.to_s + "/' -e '/advertised.listeners=/s|=.*|=PLAINTEXT://" + kafka_brokers[instance - 1] + ":9092|' /srv/kafka/config/server.properties && echo kafka config updated"
+      config.vm.provision :shell, privileged: true, inline: "systemctl start zookeeper.service && echo zookeeper service started"
+      config.vm.provision :shell, privileged: true, inline: "systemctl start kafka.service && echo kafka service started"
+    end
+  end
+end
