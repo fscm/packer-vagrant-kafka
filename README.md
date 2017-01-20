@@ -65,11 +65,12 @@ Usage:
 
 This box will have the following services running.
 
-| Service      | Port   | Protocol |
-|--------------|:------:|:--------:|
-| SSH          | 22     |    TCP   |
-| Zookeeper    | 2181   |    TCP   |
-| Kafka Broker | 9092   |    TCP   |
+| Service      | Port      | Protocol |
+|--------------|:---------:|:--------:|
+| SSH          | 22        |    TCP   |
+| Zookeeper    | 2181      |    TCP   |
+| Zookeeper    | 2888:3888 |    TCP   |
+| Kafka Broker | 9092      |    TCP   |
 
 ## Contributing
 
