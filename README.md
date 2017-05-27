@@ -47,9 +47,10 @@ Usage:
 - `app_name` - The application name (default value: "kafka").
 - `app_name_ext` - Extra name for the application (default value: "").
 - `headless` - Show the console of the machine being built (default value: "true").
-- `java_build_number` - Java build number (default value: "15").
+- `java_build_number` - Java build number (default value: "11").
 - `java_major_version` - Java major version (default value: "8").
-- `java_update_version` - Java update version (default value: "112").
+- `java_token` - Java link token (default version: "d54c1d3a095b4ff2b6607d096fa80163").
+- `java_update_version` - Java update version (default value: "131").
 - `kafka_scala_version` - Kafka Scala version (default value: "2.11").
 - `kafka_version` - Kafka version (default value: "0.10.1.1").
 - `system_disk_size` - Size of the disk in MB (default value: "8192").
